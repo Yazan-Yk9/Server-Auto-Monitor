@@ -41,5 +41,5 @@ rad.json
 TestResults.xml
 # backups
 *.old
-backup/
+backups/
 

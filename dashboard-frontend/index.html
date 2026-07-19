@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Monitoring Dashboard</title>
+    <!-- استدعاء Tailwind CSS للتنسيق العصري -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- استدعاء Chart.js للرسوم البيانية -->
+    <script src="https://unpkg.com/chart.js@4.4.1/dist/chart.umd.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans antialiased">
+
+    <!-- شريط الرأس الإداري -->
+    <header class="bg-gray-800 border-b border-gray-700 p-5 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-teal-400">📊 نظام مراقبة وأتمتة السيرفر الذكي</h1>
+            <span class="bg-teal-500/20 text-teal-300 text-sm px-3 py-1 rounded-full border border-teal-500/30">arksrv.cam</span>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-6 space-y-6">
+        
+        <!-- ⚡ قسم المؤشرات الحية السريعة (Live Cards) -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
+                <h3 class="text-gray-400 text-sm font-medium">استهلاك المعالج (CPU)</h3>
+                <p id="cpu-live" class="text-3xl font-extrabold text-amber-400 mt-2">0%</p>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
+                <h3 class="text-gray-400 text-sm font-medium">استهلاك الذاكرة (RAM)</h3>
+                <p id="ram-live" class="text-3xl font-extrabold text-blue-400 mt-2">0%</p>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
+                <h3 class="text-gray-400 text-sm font-medium">مساحة القرص (Disk)</h3>
+                <p id="disk-live" class="text-3xl font-extrabold text-purple-400 mt-2">0%</p>
+            </div>
+        </section>
+
+        <!-- 📈 قسم الرسم البياني التاريخي -->
+        <section class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+            <h2 class="text-lg font-bold text-gray-200 mb-4">📈 المخطط الزمني لاستهلاك موارد الخادم</h2>
+            <div class="relative h-96 w-full">
+                <canvas id="metricsChart"></canvas>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ربط ملف الجافا سكريبت المخصص الذي سنكتبه -->
+    <script src="js/app.js"></script>
+</body>
+</html>

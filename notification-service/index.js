@@ -15,6 +15,9 @@ const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 // تفعيل مفسر الـ JSON لاستقبل بيانات البايثون
 app.use(express.json());
 
+// جعل السيرفر يشارك ملفات مجلد الواجهة الأمامية تلقائياً عند طلب المنفذ رئيسياً
+app.use(express.static(path.join(__dirname, '../dashboard-frontend')));
+
 // 🗄️ إعداد وتجهيز قاعدة بيانات SQLite
 const dbPath = path.join(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -102,6 +105,40 @@ app.post('/api/metrics', (req, requireResponse) => {
     console.log(`📥 [${new Date().toLocaleTimeString()}] تم الاستلام والفحص الذكي لشروط التنبيهات.`);
     requireResponse.status(201).json({ status: 'success', message: 'Metrics processed and checked.' });
 });
+
+
+// 📊 1. نقطة اتصال لجلب آخر قراءة حية فقط (Live Metrics)
+app.get('/api/metrics/live', (req, res) => {
+    // استعلام SQL لجلب آخر سطر تم إدخاله في جدول المقاييس
+    const sql = `SELECT * FROM system_metrics ORDER BY id DESC LIMIT 1`;
+    
+    db.get(sql, [], (err, row) => {
+        if (err) {
+            console.error('❌ خطأ أثناء جلب القراءة الحية:', err.message);
+            return res.status(500).json({ status: 'error', message: 'خطأ داخلي في الخادم' });
+        }
+        if (!row) {
+            return res.status(404).json({ status: 'error', message: 'لا توجد بيانات مسجلة حتى الآن' });
+        }
+        res.json({ status: 'success', data: row });
+    });
+});
+
+// 📈 2. نقطة اتصال لجلب السجلات التاريخية للرسوم البيانية (Historical Metrics)
+app.get('/api/metrics/history', (req, res) => {
+    // جلب آخر 30 قراءة لتجنب إثقال المتصفح بالبيانات (Pagination Principle)
+    const sql = `SELECT * FROM system_metrics ORDER BY id DESC LIMIT 30`;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ خطأ أثناء جلب البيانات التاريخية:', err.message);
+            return res.status(500).json({ status: 'error', message: 'خطأ داخلي في الخادم' });
+        }
+        // نعكس المصفوفة لتظهر البيانات بالترتيب الزمني الصحيح من الأقدم إلى الأحدث على الرسم البياني
+        res.json({ status: 'success', data: rows.reverse() });
+    });
+});
+
 
 // تشغيل السيرفر والاستماع للمنفذ
 app.listen(PORT, () => {
