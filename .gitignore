@@ -1,0 +1,17 @@
+# Python temporary files
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node.js dependencies
+node_modules/
+npm-debug.log
+
+# Databases & Environments
+*.sqlite
+.env
+
+# Operating system files
+.DS_Store
+Thumbs.db
