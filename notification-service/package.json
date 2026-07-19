@@ -1,0 +1,27 @@
+{
+  "name": "server-notification-service",
+  "version": "1.0.0",
+  "description": "Node.js microservice to store metrics in SQLite and trigger Telegram alerts.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "devops",
+    "monitoring",
+    "telegram-bot",
+    "sqlite"
+  ],
+  "author": "Yazan Kh",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "axios": "^1.6.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

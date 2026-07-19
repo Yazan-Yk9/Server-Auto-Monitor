@@ -83,14 +83,35 @@ def main():
     
     # 1. جلب مقاييس السيرفر الحية
     system_data = get_system_metrics()
-    print("\n[البيانات المستخرجة من النظام]:")
-    print(system_data)
     
     # 2. فحص حالة صفحات الويب
     print("\n[بدء فحص شبكة الويب وجهوزية المواقع]...")
     web_data = check_website_status(TARGET_URLS)
-    print("[حالة استجابة المواقع]:")
-    print(web_data)
+    
+    # 3. تجميع كافة البيانات في حزمة موحدة متطابقة مع هيكل النود جي إس
+    payload = {
+        "timestamp": system_data["timestamp"],
+        "metrics": system_data["metrics"],
+        "web_data": web_data
+    }
+    
+    # 4. إرسال الحزمة الموحدة إلى سيرفر الـ Node.js الخلفي
+    # (ملاحظة: السيرفر يعمل محلياً على المنفذ 5000)
+    API_URL = "http://localhost:5000/api/metrics"
+    
+    try:
+        print(f"\n[جاري إرسال البيانات إلى السيرفر الخلفي على المسار {API_URL}]...")
+        response = requests.post(API_URL, json=payload, timeout=5)
+        
+        if response.status_code == 201:
+            print("✅ تم تسليم وحفظ المقاييس في قاعدة البيانات بنجاح!")
+            print(f"استجابة السيرفر: {response.json()}")
+        else:
+            print(f"❌ رفض السيرفر الحزمة. رمز الحالة: {response.status_code}")
+            print(f"السبب: {response.text}")
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ فشل الاتصال بالسيرفر الخلفي. تأكد أن سيرفر Node.js يعمل: {str(e)}")
 
 if __name__ == "__main__":
     main()
