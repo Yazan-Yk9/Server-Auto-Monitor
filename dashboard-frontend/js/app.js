@@ -21,6 +21,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     backgroundColor: 'rgba(96, 165, 250, 0.1)',
                     tension: 0.3,
                     fill: true
+                },
+                {
+                    label: 'مساحة القرص (% Disk)',
+                    data: [],
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                    tension: 0.3,
+                    fill: true
                 }
             ]
         },
@@ -50,8 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 metricsChart.data.labels = dataRows.map(row => new Date(row.timestamp).toLocaleTimeString('ar-SY'));
                 metricsChart.data.datasets[0].data = dataRows.map(row => row.cpu_usage); // تصحيح معرف المصفوفة index 0
-                metricsChart.data.datasets[1].data = dataRows.map(row => row.ram_usage); // تصحيح معرف المصفوفة index 1
-                
+                metricsChart.data.datasets[1].data = dataRows.map(row => row.ram_usage);
+                metricsChart.data.datasets[2].data = dataRows.map(row => row.disk_usage);
                 metricsChart.update();
             }
         } catch (error) {
