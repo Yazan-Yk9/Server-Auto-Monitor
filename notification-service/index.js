@@ -1,11 +1,18 @@
+// استبدل السطر الأول القديم بهذا السطر الذكي لتحديد المسار بدقة
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }); 
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// تفعيل مفسر الـ JSON لاستقبال البيانات القادمة من السكربتات الخارجية
+// جلب البيانات السرية الحصينة من ملف البيئة
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+// تفعيل مفسر الـ JSON لاستقبل بيانات البايثون
 app.use(express.json());
 
 // 🗄️ إعداد وتجهيز قاعدة بيانات SQLite
@@ -29,9 +36,7 @@ function initializeDatabase() {
             ram_usage REAL NOT NULL,
             disk_usage REAL NOT NULL
         )
-    `, (err) => {
-        if (err) console.error('❌ خطأ أثناء إنشاء جدول المقاييس:', err.message);
-    });
+    `);
 
     db.run(`
         CREATE TABLE IF NOT EXISTS website_status (
@@ -41,48 +46,64 @@ function initializeDatabase() {
             status_code INTEGER,
             reachable INTEGER NOT NULL
         )
-    `, (err) => {
-        if (err) console.error('❌ خطأ أثناء إنشاء جدول الحالات:', err.message);
-    });
+    `);
 }
 
-// 🌐 نقطة اتصال لاستقبال البيانات الحية من سكربت البايثون وحفظها
+
+// 📢 دالة إرسال التنبيهات إلى تلغرام (مصححة)
+async function sendTelegramAlert(message) {
+    // تأكد من استخدام علامة الاقتباس المائلة ` وليس العلامة العادية '
+    const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    try {
+        await axios.post(telegramUrl, {
+            chat_id: CHAT_ID,
+            text: message,
+            parse_mode: 'Markdown'
+        });
+        console.log('📢 [Telegram] تم إرسال تنبيه فوري بنجاح إلى هاتفك.');
+    } catch (error) {
+        console.error('❌ فشل إرسال التنبيه إلى تلغرام:', error.response ? error.response.data : error.message);
+    }
+}
+
+
+// 🌐 نقطة اتصال استقبال البيانات الحية والفحص الذكي
 app.post('/api/metrics', (req, requireResponse) => {
     const { timestamp, metrics, web_data } = req.body;
 
-    // 1. التحقق الفوري من سلامة هيكل البيانات المستقبلة (Data Validation)
     if (!timestamp || !metrics) {
-        return requireResponse.status(400).json({ status: 'error', message: 'بيانات غير مكتملة أو تالفة' });
+        return requireResponse.status(400).json({ status: 'error', message: 'بيانات تالفة أو ناقصة' });
     }
 
-    // 2. إدخال مقاييس النظام (CPU, RAM, Disk) في جدول system_metrics
+    // حفظ المقاييس في قاعدة البيانات
     const metricsQuery = `INSERT INTO system_metrics (timestamp, cpu_usage, ram_usage, disk_usage) VALUES (?, ?, ?, ?)`;
-    db.run(metricsQuery, [timestamp, metrics.cpu_percent, metrics.ram_percent, metrics.disk_percent], function(err) {
-        if (err) {
-            console.error('❌ فشل حفظ مقاييس النظام:', err.message);
-        }
-    });
+    db.run(metricsQuery, [timestamp, metrics.cpu_percent, metrics.ram_percent, metrics.disk_percent]);
 
-    // 3. إذا كانت بيانات فحص المواقع موجودة، نقوم بالمرور عليها وحفظها
+    // حفظ وفحص حالة المواقع
     if (web_data) {
         const webQuery = `INSERT INTO website_status (timestamp, url, status_code, reachable) VALUES (?, ?, ?, ?)`;
         for (const [url, data] of Object.entries(web_data)) {
-            db.run(webQuery, [timestamp, url, data.status_code, data.reachable ? 1 : 0], function(err) {
-                if (err) {
-                    console.error(`❌ فشل حفظ حالة الرابط ${url}:`, err.message);
-                }
-            });
+            db.run(webQuery, [timestamp, url, data.status_code, data.reachable ? 1 : 0]);
+            
+            // 🔥 فحص فوري: إذا كان الموقع غير متاح، أرسل تنبيهاً عاجلاً فوراً!
+            if (!data.reachable) {
+                const alertMsg = `🚨 *تنبيه حرج: سقوط موقع!* \n\n🌐 الرابط: \`${url}\`\n❌ الحالة: غير متاح للخدمة\n⚠️ الخطأ: _${data.error || 'كود الحالة ' + data.status_code}_\n📅 الوقت: \`${timestamp}\``;
+                sendTelegramAlert(alertMsg);
+            }
         }
     }
 
-    console.log(`📥 [${new Date().toLocaleTimeString()}] تم استقبال وحفظ حزمة مقاييس جديدة بنجاح في قاعدة البيانات.`);
-    
-    // إرسال رد سريع لسكربت البايثون لتأكيد الاستلام الناجح
-    requireResponse.status(201).json({ status: 'success', message: 'Metrics persisted successfully.' });
+    // 🔥 فحص فوري للموارد: إذا تجاوز المعالج أو الذاكرة 85%، أرسل تحذيراً
+    if (metrics.cpu_percent > 85.0 || metrics.ram_percent > 85.0) {
+        const resourceAlert = `⚠️ *تحذير: ضغط موارد مرتفع على السيرفر!* \n\n💻 استهلاك المعالج: \`${metrics.cpu_percent}%\`\n🧠 استهلاك الذاكرة: \`${metrics.ram_percent}%\`\n📅 الوقت: \`${timestamp}\``;
+        sendTelegramAlert(resourceAlert);
+    }
+
+    console.log(`📥 [${new Date().toLocaleTimeString()}] تم الاستلام والفحص الذكي لشروط التنبيهات.`);
+    requireResponse.status(201).json({ status: 'success', message: 'Metrics processed and checked.' });
 });
 
-
-// تشغيل السيرفر والاستماع للمنفذ المعين
+// تشغيل السيرفر والاستماع للمنفذ
 app.listen(PORT, () => {
     console.log(`🚀 سيرفر المراقبة الخلفي يعمل الآن على المنفذ: ${PORT}`);
 });
