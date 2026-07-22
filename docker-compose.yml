@@ -1,5 +1,4 @@
 services:
-  # 🌐 1. البوابة الأمامية ومستضيف الملفات والـ Reverse Proxy
   nginx-proxy:
     image: nginx:alpine
     container_name: server-nginx-proxy
@@ -17,14 +16,9 @@ services:
           cpus: '0.10'
           memory: 50M
 
-  # 🟢 2. السيرفر الخلفي المخصص للـ APIs والتنبيهات
   notification-service:
     build: ./notification-service
     container_name: server-notification-container
-    #volumes:
-      # 🔥 الإصلاح الهندسي الحاسم: تمرير المجلد الأب بالكامل لبيئة العمل المعزولة
-      # لكي يستطيع محرك SQLite إنشاء وحذف ملفاته بحرية ودون تضارب مع نظام تشغيل السيرفر
-      #- ./notification-service/app:/app
     env_file:
       - .env
     restart: always
@@ -34,7 +28,6 @@ services:
           cpus: '0.25'
           memory: 150M
 
-  # 🐍 3. محرك البايثون وجامع المقاييس الحقيقية
   metrics-collector:
     build: ./metrics-collector
     container_name: server-metrics-container
@@ -51,4 +44,3 @@ services:
         limits:
           cpus: '0.15'
           memory: 80M
-

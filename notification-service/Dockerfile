@@ -1,6 +1,5 @@
 FROM node:20-slim
 
-# تثبيت الاعتماديات داخل حاوية node-slim
 RUN apt-get update && apt-get install -y \
     python3 \
     make \

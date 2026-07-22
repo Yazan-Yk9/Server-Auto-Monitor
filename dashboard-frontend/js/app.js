@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // ⬇️ انقل كافة أكواد ملف app.js القديمة بالكامل داخل هذا القوس ⬇️
     const ctx = document.getElementById('metricsChart').getContext('2d');
     const metricsChart = new Chart(ctx, {
         type: 'line',
@@ -47,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/metrics/history');
             const jsonResult = await response.json();
-            
+
             if (jsonResult.status === 'success' && jsonResult.data.length > 0) {
                 const dataRows = jsonResult.data;
                 const lastRecord = dataRows[dataRows.length - 1];
@@ -69,5 +68,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fetchMetricsDashboard();
     setInterval(fetchMetricsDashboard, 5000);
-    // ⬆️ نهاية الكود القديم ⬆️
 });

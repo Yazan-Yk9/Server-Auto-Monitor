@@ -1,4 +1,3 @@
-// استبدل السطر الأول القديم بهذا السطر الذكي لتحديد المسار بدقة
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }); 
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
@@ -8,17 +7,11 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// جلب البيانات السرية الحصينة من ملف البيئة
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-// تفعيل مفسر الـ JSON لاستقبل بيانات البايثون
 app.use(express.json());
 
-// جعل السيرفر يشارك ملفات مجلد الواجهة الأمامية تلقائياً عند طلب المنفذ رئيسياً
-//app.use(express.static(path.join(__dirname, '../dashboard-frontend')));
-
-// 🗄️ إعداد وتجهيز قاعدة بيانات SQLite
 const dbPath = path.join(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
@@ -29,7 +22,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// وظيفة إنشاء الجداول لتخزين المقاييس وحالة الروابط
 function initializeDatabase() {
     db.run(`
         CREATE TABLE IF NOT EXISTS system_metrics (
@@ -53,9 +45,9 @@ function initializeDatabase() {
 }
 
 
-// 📢 دالة إرسال التنبيهات إلى تلغرام (مصححة)
+
 async function sendTelegramAlert(message) {
-    // تأكد من استخدام علامة الاقتباس المائلة ` وليس العلامة العادية '
+
     const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
     try {
         await axios.post(telegramUrl, {
@@ -70,7 +62,6 @@ async function sendTelegramAlert(message) {
 }
 
 
-// 🌐 نقطة اتصال استقبال البيانات الحية والفحص الذكي
 app.post('/api/metrics', (req, requireResponse) => {
     const { timestamp, metrics, web_data } = req.body;
 
@@ -78,29 +69,14 @@ app.post('/api/metrics', (req, requireResponse) => {
         return requireResponse.status(400).json({ status: 'error', message: 'بيانات تالفة أو ناقصة' });
     }
 
-    // حفظ المقاييس في قاعدة البيانات
-    
     const metricsQuery = `INSERT INTO system_metrics (timestamp, cpu_usage, ram_usage, disk_usage) VALUES (?, ?, ?, ?)`;
     db.run(metricsQuery, [timestamp, metrics.cpu_percent, metrics.ram_percent, metrics.disk_percent]);
 
-    // 🔥 التصحيح الهندسي المتكامل لترتيب قيم قاعدة البيانات (تأكد من مطابقة المصفوفة للاستعلام)
- //   const metricsQuery = `INSERT INTO system_metrics (timestamp, cpu_usage, ram_usage, disk_usage) VALUES (?, ?, ?, ?)`;
-
-//    // أضفنا متغير timestamp في بداية المصفوفة ليطابق حقول الـ SQL بدقة
-//    db.run(metricsQuery, [timestamp, metrics.cpu_percent, metrics.ram_percent, metrics.disk_percent], function(err) {
-//       if (err) {
-//          console.error('❌ فشل حفظ مقاييس النظام في قاعدة البيانات:', err.message);
-//        }
-//     });
-
-
-    // حفظ وفحص حالة المواقع
     if (web_data) {
         const webQuery = `INSERT INTO website_status (timestamp, url, status_code, reachable) VALUES (?, ?, ?, ?)`;
         for (const [url, data] of Object.entries(web_data)) {
             db.run(webQuery, [timestamp, url, data.status_code, data.reachable ? 1 : 0]);
-            
-            // 🔥 فحص فوري: إذا كان الموقع غير متاح، أرسل تنبيهاً عاجلاً فوراً!
+
             if (!data.reachable) {
                 const alertMsg = `🚨 *تنبيه حرج: سقوط موقع!* \n\n🌐 الرابط: \`${url}\`\n❌ الحالة: غير متاح للخدمة\n⚠️ الخطأ: _${data.error || 'كود الحالة ' + data.status_code}_\n📅 الوقت: \`${timestamp}\``;
                 sendTelegramAlert(alertMsg);
@@ -119,11 +95,9 @@ app.post('/api/metrics', (req, requireResponse) => {
 });
 
 
-// 📊 1. نقطة اتصال لجلب آخر قراءة حية فقط (Live Metrics)
 app.get('/api/metrics/live', (req, res) => {
-    // استعلام SQL لجلب آخر سطر تم إدخاله في جدول المقاييس
     const sql = `SELECT * FROM system_metrics ORDER BY id DESC LIMIT 1`;
-    
+
     db.get(sql, [], (err, row) => {
         if (err) {
             console.error('❌ خطأ أثناء جلب القراءة الحية:', err.message);
@@ -136,23 +110,19 @@ app.get('/api/metrics/live', (req, res) => {
     });
 });
 
-// 📈 2. نقطة اتصال لجلب السجلات التاريخية للرسوم البيانية (Historical Metrics)
 app.get('/api/metrics/history', (req, res) => {
-    // جلب آخر 30 قراءة لتجنب إثقال المتصفح بالبيانات (Pagination Principle)
     const sql = `SELECT * FROM system_metrics ORDER BY id DESC LIMIT 30`;
-    
+
     db.all(sql, [], (err, rows) => {
         if (err) {
             console.error('❌ خطأ أثناء جلب البيانات التاريخية:', err.message);
             return res.status(500).json({ status: 'error', message: 'خطأ داخلي في الخادم' });
         }
-        // نعكس المصفوفة لتظهر البيانات بالترتيب الزمني الصحيح من الأقدم إلى الأحدث على الرسم البياني
         res.json({ status: 'success', data: rows.reverse() });
     });
 });
 
 
-// تشغيل السيرفر والاستماع للمنفذ
 app.listen(PORT, () => {
     console.log(`🚀 سيرفر المراقبة الخلفي يعمل الآن على المنفذ: ${PORT}`);
 });
