@@ -16,7 +16,7 @@ const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 app.use(express.json());
 
 // جعل السيرفر يشارك ملفات مجلد الواجهة الأمامية تلقائياً عند طلب المنفذ رئيسياً
-app.use(express.static(path.join(__dirname, '../dashboard-frontend')));
+//app.use(express.static(path.join(__dirname, '../dashboard-frontend')));
 
 // 🗄️ إعداد وتجهيز قاعدة بيانات SQLite
 const dbPath = path.join(__dirname, 'database.sqlite');
@@ -79,8 +79,20 @@ app.post('/api/metrics', (req, requireResponse) => {
     }
 
     // حفظ المقاييس في قاعدة البيانات
+    
     const metricsQuery = `INSERT INTO system_metrics (timestamp, cpu_usage, ram_usage, disk_usage) VALUES (?, ?, ?, ?)`;
     db.run(metricsQuery, [timestamp, metrics.cpu_percent, metrics.ram_percent, metrics.disk_percent]);
+
+    // 🔥 التصحيح الهندسي المتكامل لترتيب قيم قاعدة البيانات (تأكد من مطابقة المصفوفة للاستعلام)
+ //   const metricsQuery = `INSERT INTO system_metrics (timestamp, cpu_usage, ram_usage, disk_usage) VALUES (?, ?, ?, ?)`;
+
+//    // أضفنا متغير timestamp في بداية المصفوفة ليطابق حقول الـ SQL بدقة
+//    db.run(metricsQuery, [timestamp, metrics.cpu_percent, metrics.ram_percent, metrics.disk_percent], function(err) {
+//       if (err) {
+//          console.error('❌ فشل حفظ مقاييس النظام في قاعدة البيانات:', err.message);
+//        }
+//     });
+
 
     // حفظ وفحص حالة المواقع
     if (web_data) {

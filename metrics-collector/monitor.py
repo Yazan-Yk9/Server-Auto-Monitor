@@ -1,13 +1,41 @@
+import os
+import sys
+
+# 🔥 الخطوة الاستراتيجية الحاسمة: حقن مسار النظام الحقيقي قبل استدعاء أي مكتبة أخرى
+if os.path.exists('/host/proc'):
+    os.environ['HOST_PROC'] = '/host/proc'
+
 import psutil
 import requests
 import datetime
 import time
 
+from pathlib import Path
+env_path = Path(__file__).resolve().parent.parent / '.env'
+
+#def get_env_variable(key, default=""):
+#    if env_path.exists():
+#        with open(env_path, 'r') as f:
+#            for line in f:
+#                if line.strip() and not line.startswith('#'):
+#                    k, v = line.strip().split('=', 1)
+#                    if k == key:
+#                        return v
+#    return default
+
+
 # إعدادات الروابط المستهدفة للفحص المستقبلي
 # (ملاحظة: سأكتبها بالمسافات لضمان عدم اقتطاعها في الشات، قم بتعديلها لروابط حقيقية في ملفك)
+TARGET_DOMAIN = os.getenv("DOMAIN_NAME", "localhost")
+API_HOST = os.getenv("HOST", "localhost")
+API_PORT = os.getenv("PORT", "5000")
+
 TARGET_URLS = [
-    "https://arksrv.cam"
+    f"https://{TARGET_DOMAIN}",
 ]
+
+# (ملاحظة: السيرفر يعمل محلياً على المنفذ 5000)
+API_URL = f"http://{API_HOST}:{API_PORT}/api/metrics"
 
 def get_system_metrics():
     """
@@ -21,8 +49,12 @@ def get_system_metrics():
         ram = psutil.virtual_memory().percent
         
         # 3. جلب نسبة استهلاك القرص الصلب للمسار الرئيسي '/'
-        disk = psutil.disk_usage('/').percent
-        
+        #disk = psutil.disk_usage('/').percent
+        if os.path.exists('/host/root'):
+            disk = psutil.disk_usage('/host/root').percent
+        else:
+            disk = psutil.disk_usage('/').percent
+
         # تجميع البيانات في قاموس (Dictionary) منظم مع توثيق زمني بنظام ISO
         return {
             "status": "success",
@@ -65,7 +97,8 @@ def check_website_status(urls):
                 "status_code": None,
                 "reachable": False,
                 "error": "Request Timed Out"
-            }
+  \
+         }
         except requests.exceptions.RequestException as e:
             # التقاط أي خطأ شبكة آخر (مثل عدم القدرة على حل الـ DNS أو سقوط السيرفر تماماً)
             results[url] = {
@@ -80,37 +113,40 @@ def check_website_status(urls):
 def main():
     print("=== بدء نظام المراقبة والأتمتة الذكي ===")
     
-    # 1. جلب مقاييس السيرفر الحية
-    system_data = get_system_metrics()
+    while True:
+        # 1. جلب مقاييس السيرفر الحية
+        system_data = get_system_metrics()
     
-    # 2. فحص حالة صفحات الويب
-    print("\n[بدء فحص شبكة الويب وجهوزية المواقع]...")
-    web_data = check_website_status(TARGET_URLS)
+        # 2. فحص حالة صفحات الويب
+        print("\n[بدء فحص شبكة الويب وجهوزية المواقع]...")
+        web_data = check_website_status(TARGET_URLS)
     
-    # 3. تجميع كافة البيانات في حزمة موحدة متطابقة مع هيكل النود جي إس
-    payload = {
-        "timestamp": system_data["timestamp"],
-        "metrics": system_data["metrics"],
-        "web_data": web_data
-    }
+        # 3. تجميع كافة البيانات في حزمة موحدة متطابقة مع هيكل النود جي إس
+        payload = {
+            "timestamp": system_data["timestamp"],
+            "metrics": system_data["metrics"],
+            "web_data": web_data
+        }
     
-    # 4. إرسال الحزمة الموحدة إلى سيرفر الـ Node.js الخلفي
-    # (ملاحظة: السيرفر يعمل محلياً على المنفذ 5000)
-    API_URL = "http://localhost:5000/api/metrics"
+        # 4. إرسال الحزمة الموحدة إلى سيرفر الـ Node.js الخلفي
+        # (ملاحظة: السيرفر يعمل محلياً على المنفذ 5000)
+#        API_URL = "http://server-notification-container:5000/api/metrics"
     
-    try:
-        print(f"\n[جاري إرسال البيانات إلى السيرفر الخلفي على المسار {API_URL}]...")
-        response = requests.post(API_URL, json=payload, timeout=5)
+        try:
+            print(f"\n[جاري إرسال البيانات إلى السيرفر الخلفي على المسار {API_URL}]...")
+            response = requests.post(API_URL, json=payload, timeout=5)
         
-        if response.status_code == 201:
-            print("✅ تم تسليم وحفظ المقاييس في قاعدة البيانات بنجاح!")
-            print(f"استجابة السيرفر: {response.json()}")
-        else:
-            print(f"❌ رفض السيرفر الحزمة. رمز الحالة: {response.status_code}")
-            print(f"السبب: {response.text}")
+            if response.status_code == 201:
+                print("✅ تم تسليم وحفظ المقاييس في قاعدة البيانات بنجاح!")
+                print(f"استجابة السيرفر: {response.json()}")
+            else:
+                print(f"❌ رفض السيرفر الحزمة. رمز الحالة: {response.status_code}")
+                print(f"السبب: {response.text}")
             
-    except requests.exceptions.RequestException as e:
-        print(f"❌ فشل الاتصال بالسيرفر الخلفي. تأكد أن سيرفر Node.js يعمل: {str(e)}")
+        except requests.exceptions.RequestException as e:
+            print(f"❌ فشل الاتصال بالسيرفر الخلفي. تأكد أن سيرفر Node.js يعمل: {str(e)}")
+        time.sleep(5)
+
 
 if __name__ == "__main__":
     main()

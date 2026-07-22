@@ -1,0 +1,54 @@
+services:
+  # 🌐 1. البوابة الأمامية ومستضيف الملفات والـ Reverse Proxy
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: server-nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./dashboard-frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - notification-service
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 50M
+
+  # 🟢 2. السيرفر الخلفي المخصص للـ APIs والتنبيهات
+  notification-service:
+    build: ./notification-service
+    container_name: server-notification-container
+    #volumes:
+      # 🔥 الإصلاح الهندسي الحاسم: تمرير المجلد الأب بالكامل لبيئة العمل المعزولة
+      # لكي يستطيع محرك SQLite إنشاء وحذف ملفاته بحرية ودون تضارب مع نظام تشغيل السيرفر
+      #- ./notification-service/app:/app
+    env_file:
+      - .env
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 150M
+
+  # 🐍 3. محرك البايثون وجامع المقاييس الحقيقية
+  metrics-collector:
+    build: ./metrics-collector
+    container_name: server-metrics-container
+    depends_on:
+      - notification-service
+    volumes:
+      - /proc:/host/proc:ro
+      - /:/host/root:ro
+    env_file:
+      - .env
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.15'
+          memory: 80M
+
